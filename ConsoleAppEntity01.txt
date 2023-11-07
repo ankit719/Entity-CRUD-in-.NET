@@ -1,0 +1,213 @@
+Install-Package Microsoft.EntityFrameworkCore             //contain DbContext class
+Install-Package Microsoft.EntityFrameworkCore.SqlServer
+Install-Package Microsoft.EntityFrameworkCore.Tools
+Install-Package Microsoft.EntityFrameworkCore.Design
+
+--------------------------------------------------
+Add-Migration CreateSchoolDB//two file is creates
+                            //1--20231107044805_CreateSchoolDB.cs
+                            //2--SchoolContextModelSnapshot.cs--it contain poco class detail
+Update-Database --verbose//after this table is created on the basis of 2 file created on migration time
+Add-Migration AddPhoto
+Update-Database -verbose
+Add-Migration AddAddress
+Update-Database -verbose
+Add-Migration Email
+Update-Database -verbose
+
+Update-Database 20231107073822_AddPhoto//yahe bache ga iske bad vale sabhi add migration gayab ho jaeye ga
+
+--------------------------------------------------
+Grade.cs
+---------
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConsoleAppEntity01.Models
+{
+    public class Grade
+    {
+
+        public int Id { get; set; }
+        public string? GradeName { get; set; }
+        public string? Section { get; set; }
+
+        public IList<Student?> Students { get; set; }
+    }
+    
+}
+------------------------------------------------------------
+SchoolContext.cs
+-----------------
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConsoleAppEntity01.Models
+{
+    public class SchoolContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseSqlServer(@"Data Source=(localdb)\ProjectModels;Initial Catalog=Demo_data;Integrated Security=True");
+        }
+
+        public DbSet<Student> Student { get; set; }
+        public DbSet<Grade> Grade { get; set; }
+    }
+
+}
+--------------------------------------------------------------------
+Student.cs
+-------------
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConsoleAppEntity01.Models
+{
+    public class Student
+    {
+        public int StudentId { get; set; }
+       
+        public string? FirstName { get; set; }
+       
+        public string? LastName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? Photo { get; set; }
+        public float? Height { get; set; }
+        public float? Weight { get; set; }
+
+        public int? GradeId { get; set; }
+        public Grade? Grade { get; set; }
+        public override string ToString()
+        {
+            return String.Format("{0}, {1}, {2},{3}, {4}, {5} {6}", FirstName, LastName, DateOfBirth, Photo, Height, Weight, GradeId);
+        }
+
+    }
+
+}
+----------------------------------------------------------------------------------
+DbServices.cs
+---------------
+using ConsoleAppEntity01.Models;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Data.SqlTypes;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace ConsoleAppEntity01
+{
+    internal class DbServices
+    {
+     private static readonly SchoolContext db = new SchoolContext();
+        public  void Adddata(Student s)
+        {
+           // Student student = new Student() { FirstName = "Mona", LastName = "Thak", DateOfBirth = new DateTime(1999, 12, 12, 0, 0, 0), Photo = "images/s.png", Height = 5, Weight = 50, GradeId = 2 };
+            db.Add<Student>(s);
+            db.SaveChanges();
+                      
+         }
+        public void Display()
+        {
+            foreach (var r in db.Student.ToList<Student>())
+                Console.WriteLine(r);
+
+        }
+        public void Delete(int id)
+        {
+         Student s= db.Student.SingleOrDefault<Student>((Stu)=>Stu.StudentId==id);
+            if (s != null)
+            {
+                db.Remove<Student>(s);
+                db.SaveChanges();
+            }
+        }
+        public List<Student> Customquery(string name)
+        {
+            FormattableString sql = $"SELECT * FROM Student WHERE FirstName ={name} ";
+            var studentlist = db.Student.FromSql(sql).ToList();
+            return studentlist; 
+        
+        
+        }
+        public void UpdateStudent(int Id, Student s)
+        {
+            if (s != null && s.StudentId == Id)
+            {
+                db.Entry(s).State = EntityState.Modified;
+                db.Update<Student>(s);
+            }
+            db.SaveChanges();
+        }
+
+        public void Liqdemo()
+        {
+          var r=  db.Student.Join(db.Grade, (sg) => sg.GradeId, (gi) => gi.Id, (r, g) => new { Name = r.FirstName, Gradename = g.GradeName });
+           foreach(var result in r)
+            {
+                Console.Write(result.Gradename + " ");
+                Console.WriteLine(result.Name);
+
+            }
+
+
+        }
+
+
+    }
+}
+-----------------------------------------------------------------------------------------------
+Program.cs
+---------------
+using ConsoleAppEntity01.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using System;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+
+namespace ConsoleAppEntity01
+{
+    internal class Program
+    { 
+        static void Main(string[] args)
+        {
+           DbServices services = new DbServices();
+           List<Student> sl= services.Customquery("1St");
+            foreach(Student s1 in sl)
+                Console.WriteLine(s1);
+          
+            services.Delete(3);
+
+            Student ss = new Student() { FirstName = "new222", LastName = "sha", DateOfBirth = new DateTime(2001, 12, 15, 0, 0, 0), Photo = "images/a.png", Height = 5, Weight = 58 };
+           
+            services.Adddata(ss);
+            
+            services.Display();
+            services.Liqdemo();
+            
+
+        }
+
+    }
+}
+--------------------------------------------------------------------------
+
+
